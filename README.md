@@ -16,9 +16,9 @@ Untuk membuat secret: `node -e "console.log(require('node:crypto').randomBytes(3
 1. Impor `data-tracer-study.csv`. Kolom wajib: `Nama,NIM,Program Studi,Tahun Lulus,Tempat Kerja`. `Nomor WhatsApp` opsional. UTF-8 disarankan; delimiter koma maupun titik koma dideteksi otomatis. Alias seperti `prodi`, `tahun_lulus`, `tempat_kerja`, dan `no hp` diterima.
 2. NIM diperlakukan sebagai teks sehingga nol di depan dipertahankan. Baris tanpa nama/NIM dilewati. NIM duplikat memakai baris pertama. Kesalahan struktur CSV menolak impor tanpa menghapus data lama.
 3. Cari nama/NIM dan filter prodi/tahun. Klik **Detail** untuk memeriksa atau melengkapi data dan nomor WhatsApp. Perubahan tidak menulis ulang CSV asli.
-4. Template resmi bawaan otomatis dimuat setelah login. Buka **Template surat** jika ingin menggantinya dengan DOCX lain (maksimal 3 MB) untuk sesi tersebut. Nomor surat tetap diisi manual.
+4. Template resmi bawaan otomatis dimuat setelah login. Buka **Template surat** jika ingin menggantinya dengan DOCX lain (maksimal 3 MB) untuk sesi tersebut. Nomor surat otomatis menggunakan `529/UNISA/AK/XI/2026`.
 5. Pilih alumni (checkbox di header memilih halaman aktif). Pilihan tetap ada saat filter berganti; jumlah pilihan keseluruhan selalu ditampilkan. Maksimal 50 alumni per proses.
-6. Periksa data pada dialog, isi tanggal dan nomor surat resmi bila tersedia, pilih Word/PDF, lalu unduh. Satu alumni menghasilkan satu file; beberapa alumni menghasilkan ZIP berisi file terpisah.
+6. Periksa data pada dialog, isi tanggal, pilih Word/PDF, lalu unduh. Nomor surat otomatis terisi. Satu alumni menghasilkan satu file; beberapa alumni menghasilkan ZIP berisi file terpisah.
 7. Buka WhatsApp dari detail. Caption terisi otomatis, tetapi **lampirkan file dan kirim pesan secara manual**.
 
 Contoh CSV sintetis (bukan data alumni nyata):
@@ -43,7 +43,7 @@ Letakkan placeholder berikut langsung pada template Word. Gaya paragraf, kop, ta
 | `{tempat_kerja}` | Instansi/perusahaan |
 | `{nomor_whatsapp}` | Nomor kontak, boleh kosong |
 | `{tanggal}` | Tanggal pilihan admin, format Indonesia |
-| `{nomor_surat}` | Nomor resmi yang diisi admin per alumni, boleh kosong |
+| `{nomor_surat}` | Nomor resmi otomatis: `529/UNISA/AK/XI/2026` |
 
 Template bawaan berada di `server/assets/templates/draft-surat-pengantar-tracer-study.docx` dan disajikan melalui `/api/template` yang memerlukan login. Salinan ini berasal dari draft Word yang diberikan; data contoh pada tanggal, nomor surat, direktur instansi, dan baris alumni sudah diganti placeholder. Isi surat, tautan kuesioner, kop, serta gambar tetap mengikuti draft. File asli di root tidak diubah dan tetap diabaikan Git. Untuk menyiapkan ulang salinan dari draft dengan struktur yang sama, jalankan `node scripts/prepare-template.mjs`. Script akan menolak struktur yang tidak cocok; template pengganti berstruktur lain dapat disiapkan manual menggunakan placeholder berikut. Template pengganti yang diunggah melalui UI hanya berlaku selama sesi. Placeholder lain/ekspresi tidak didukung. Placeholder wajib harus berada di badan surat. Dokumen gagal bila identitas atau data wajib belum lengkap. Alumni tanpa pekerjaan perlu keputusan admin atas isi surat; aplikasi tidak mengisi instansi fiktif.
 
@@ -78,7 +78,7 @@ Belum ada deployment/domain Vercel yang dibuat dari workspace ini. Kredensial pr
 - Password hanya diperiksa di server, perbandingan hash waktu konstan. Sesi terenkripsi HttpOnly, SameSite Strict, Secure pada produksi, berumur 8 jam. Mengganti password membatalkan validitas sesi lama.
 - Mutasi API memeriksa Origin; API konversi memerlukan sesi admin. Respons menggunakan `Cache-Control: no-store`. Logout menghapus cookie dan state halaman. Seperti sesi cookie stateless umumnya, logout tidak mencabut salinan cookie yang sudah dicuri; rotasi secret membatalkan seluruh sesi.
 - Pembatasan login lokal: 10 kegagalan/IP/15 menit **per instance**, bukan pembatasan global serverless. Gunakan Firewall Vercel untuk batas global.
-- Tidak ada analitik, penyimpanan alumni server, pengiriman WhatsApp otomatis, atau pembuatan nomor surat otomatis.
+- Tidak ada analitik, penyimpanan alumni server, atau pengiriman WhatsApp otomatis.
 
 ```sh
 npm test

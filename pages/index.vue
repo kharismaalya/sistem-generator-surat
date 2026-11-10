@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Alumni } from '~/types/alumni'
 import { parseCsv } from '~/utils/csv-parser'
+import { parseXlsx } from '~/utils/excel-parser'
 import { placeholders, createDocument } from '~/utils/document-generator'
 definePageMeta({ middleware: 'auth' })
 const alumni = ref<Alumni[]>([]), warnings = ref<string[]>([]), selected = ref<string[]>([])
@@ -39,9 +40,10 @@ async function uploadCsv(event: Event) {
   error.value = ''; message.value = ''; importing.value = true
   try {
     await $fetch('/api/auth/session')
-    if (!file.name.toLowerCase().endsWith('.csv')) throw new Error('Pilih file dengan ekstensi .csv.')
-    if (file.size > 10 * 1024 * 1024) throw new Error('Ukuran CSV maksimal 10 MB.')
-    const result = parseCsv(await file.text())
+    const extension = file.name.toLowerCase().split('.').pop()
+    if (extension !== 'csv' && extension !== 'xlsx') throw new Error('Pilih file dengan ekstensi .csv atau .xlsx.')
+    if (file.size > 10 * 1024 * 1024) throw new Error('Ukuran file maksimal 10 MB.')
+    const result = extension === 'csv' ? parseCsv(await file.text()) : await parseXlsx(await file.arrayBuffer())
     alumni.value = result.alumni; warnings.value = result.warnings; filename.value = file.name
     selected.value = []; page.value = 1; query.value = ''; prodi.value = ''; year.value = ''
     message.value = `${result.alumni.length} alumni berhasil diimpor${result.skipped ? `, ${result.skipped} baris dilewati` : ''}.`
@@ -51,13 +53,16 @@ async function uploadCsv(event: Event) {
 async function uploadTemplate(event: Event) {
   const input = event.target as HTMLInputElement, file = input.files?.[0]
   if (!file) return
-  error.value = ''
+  error.value = ''; message.value = ''
   try {
     if (!file.name.endsWith('.docx') || file.size > 3 * 1024 * 1024) throw new Error('Template harus berupa DOCX, maksimal 3 MB.')
     const bytes = await file.arrayBuffer()
     createDocument(bytes, { nama: 'Validasi Template', nim: 'TEST-NIM-001', prodi: 'Program Studi', tahunLulus: '2024', tempatKerja: 'Instansi', whatsapp: '' }, '', '1 Januari 2026')
     template.value = bytes; templateName.value = file.name; message.value = 'Template berhasil dimuat dan divalidasi.'
-  } catch (e: any) { error.value = `Template tidak dapat digunakan: ${e.message}` }
+  } catch (e: any) {
+    const details = e.properties?.errors?.map((item: any) => item.properties?.explanation || item.message).filter(Boolean)
+    error.value = `Template tidak dapat digunakan: ${details?.length ? details.join('; ') : e.message}`
+  }
   finally { input.value = '' }
 }
 function saveDetail(updated: Alumni) {
@@ -85,8 +90,8 @@ function done(count: number) { generating.value = null; message.value = `${count
     <section class="page-heading"><div><span class="eyebrow">TRACER STUDY</span><h1>Surat pengantar alumni<span class="accent-dot">.</span></h1><p class="muted">Dari data alumni menjadi surat yang siap dikirim.</p></div><button class="btn secondary" @click="showSettings = !showSettings">⚙ Template surat</button></section>
     <section class="workflow-strip" aria-label="Tahapan kerja"><div><span class="step-number">01</span><strong>Impor data</strong><small>Unggah CSV Tracer Study</small></div><span class="step-line" /><div><span class="step-number">02</span><strong>Pilih alumni</strong><small>Periksa informasi penerima</small></div><span class="step-line" /><div><span class="step-number">03</span><strong>Siapkan surat</strong><small>Unduh Word atau PDF</small></div></section>
     <p v-if="error" class="notice error mb-5" role="alert">{{ error }}</p><p v-if="message" class="notice success mb-5" role="status">{{ message }}</p>
-    <section v-if="showSettings" class="panel template-panel mb-6"><div><span class="eyebrow">TEMPLATE RESMI</span><h2>Gunakan format surat Anda</h2><p class="muted text-sm mt-2">Template resmi bawaan dimuat otomatis setelah login. Anda dapat menggantinya dengan DOCX lain untuk sesi ini.</p><p class="text-sm mt-3">Placeholder: <code v-for="p in placeholders" :key="p">{{ '{' + p + '}' }}</code></p><p class="muted text-xs mt-3">Wajib memuat {nama} dan {nim}. Nomor surat diisi manual; tidak dibuat otomatis. Template pengganti hanya berlaku selama sesi ini.</p><p class="muted text-xs mt-2">PDF: {{ pdfEnabled ? 'layanan konversi sudah dikonfigurasi' : 'belum aktif — isi environment layanan Gotenberg untuk mengaktifkan' }}.</p></div><label class="btn secondary cursor-pointer">{{ templateName ? 'Ganti template' : 'Unggah DOCX ↑' }}<input class="sr-only" type="file" accept=".docx" @change="uploadTemplate" /></label><p v-if="templateName" class="text-sm text-teal-700 break-all">✓ {{ templateName }}</p></section>
-    <section class="import-card"><div class="file-symbol">CSV</div><div class="flex-1"><h2>{{ filename || 'Mulai dengan data alumni' }}</h2><p class="muted text-sm mt-1">{{ filename ? `${alumni.length} alumni dimuat · Impor ulang akan mengganti data sesi ini.` : 'Unggah data-tracer-study.csv untuk menampilkan daftar alumni.' }}</p><p class="muted text-xs mt-2">CSV · Maks. 10 MB / 20.000 baris · Data hanya tersimpan selama sesi</p></div><label class="btn primary cursor-pointer" :class="{ 'opacity-50 pointer-events-none': importing }">{{ importing ? 'Membaca…' : filename ? 'Ganti CSV ↑' : 'Impor CSV ↑' }}<input class="sr-only" type="file" accept=".csv,text/csv" :disabled="importing" @change="uploadCsv" /></label></section>
+    <section v-if="showSettings" class="panel template-panel mb-6"><div><span class="eyebrow">TEMPLATE RESMI</span><h2>Gunakan format surat Anda</h2><p class="muted text-sm mt-2">Template resmi bawaan dimuat otomatis setelah login. Anda dapat menggantinya dengan DOCX lain untuk sesi ini.</p><p class="text-sm mt-3">Placeholder: <code v-for="p in placeholders" :key="p">{{ '{' + p + '}' }}</code></p><p class="muted text-xs mt-3">Wajib memuat {nama} dan {nim}. Nomor surat otomatis menggunakan 529/UNISA/AK/XI/2026. Template pengganti hanya berlaku selama sesi ini.</p><p class="muted text-xs mt-2">PDF: {{ pdfEnabled ? 'layanan konversi sudah dikonfigurasi' : 'belum aktif — isi environment layanan Gotenberg untuk mengaktifkan' }}.</p></div><label class="btn secondary cursor-pointer">{{ templateName ? 'Ganti template' : 'Unggah DOCX ↑' }}<input class="sr-only" type="file" accept=".docx" @change="uploadTemplate" /></label><p v-if="templateName" class="text-sm text-teal-700 break-all">✓ {{ templateName }}</p></section>
+    <section class="import-card"><div class="file-symbol">FILE</div><div class="flex-1"><h2>{{ filename || 'Mulai dengan data alumni' }}</h2><p class="muted text-sm mt-1">{{ filename ? `${alumni.length} alumni dimuat · Impor ulang akan mengganti data sesi ini.` : 'Unggah data-tracer-study.csv atau file Excel .xlsx.' }}</p><p class="muted text-xs mt-2">CSV / XLSX · Maks. 10 MB / 20.000 baris · Data hanya tersimpan selama sesi</p></div><label class="btn primary cursor-pointer" :class="{ 'opacity-50 pointer-events-none': importing }">{{ importing ? 'Membaca…' : filename ? 'Ganti file ↑' : 'Impor file ↑' }}<input class="sr-only" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" :disabled="importing" @change="uploadCsv" /></label></section>
     <details v-if="warnings.length" class="notice mt-4"><summary class="cursor-pointer font-medium">Catatan impor ({{ warnings.length }})</summary><ul class="list-disc pl-5 mt-2 text-sm"><li v-for="warning in warnings" :key="warning">{{ warning }}</li></ul></details>
     <section class="panel data-panel"><div class="section-heading"><div class="flex items-center gap-3"><h2>Daftar alumni</h2><span class="count-chip">{{ alumni.length }}</span></div><span class="muted text-xs">{{ templateName ? '✓ Template siap' : 'Template belum dimuat' }}</span></div>
       <div class="filters"><div class="search-wrap"><span aria-hidden="true">⌕</span><input v-model="query" aria-label="Cari nama atau NIM" placeholder="Cari nama atau NIM alumni…" /></div><select v-model="prodi" aria-label="Filter program studi"><option value="">Semua program studi</option><option v-for="p in programs" :key="p">{{ p }}</option></select><select v-model="year" aria-label="Filter tahun lulus"><option value="">Semua tahun</option><option v-for="y in years" :key="y">{{ y }}</option></select></div>

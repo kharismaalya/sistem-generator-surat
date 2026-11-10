@@ -2,6 +2,7 @@ import Docxtemplater from 'docxtemplater'
 import PizZip from 'pizzip'
 import type { Alumni } from '../types/alumni'
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+export const DEFAULT_LETTER_NUMBER = '529/UNISA/AK/XI/2026'
 export const placeholders = ['nama', 'nim', 'program_studi', 'tahun_lulus', 'tempat_kerja', 'nomor_whatsapp', 'tanggal', 'nomor_surat']
 export function validateAlumni(a: Alumni) {
   if (!a.nama || !a.nim || !a.prodi || !/^\d{4}$/.test(a.tahunLulus) || !a.tempatKerja) throw new Error(`Lengkapi nama, NIM, prodi, tahun lulus (4 digit), dan tempat kerja ${a.nama}.`)
