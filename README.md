@@ -5,7 +5,7 @@ Aplikasi internal Universitas 'Aisyiyah Yogyakarta untuk membuat surat pengantar
 ## Menjalankan lokal
 
 1. Gunakan Node.js 22.22+ (atau Node.js 24 LTS) dan jalankan `npm ci`.
-2. Jalankan `npm run setup:local` untuk membuat `.env` dengan password dan secret acak tanpa menimpa file yang sudah ada. Alternatif: salin `.env.example` menjadi `.env`, isi `NUXT_ADMIN_PASSWORD` dengan password kuat dan `NUXT_SESSION_SECRET` dengan secret acak minimal 32 karakter. Jangan commit `.env`.
+2. Jalankan `npm run setup:local` untuk membuat `.env` dengan password dan secret acak tanpa menimpa file yang sudah ada. Alternatif: salin `.env.example` menjadi `.env`, isi `NUXT_ADMIN_PASSWORDS` dengan satu atau beberapa password dipisahkan koma (tanpa koma di dalam password) dan `NUXT_SESSION_SECRET` dengan secret acak minimal 32 karakter. `NUXT_ADMIN_PASSWORD` tunggal tetap didukung untuk kompatibilitas. Jangan commit `.env`.
 3. Jalankan `npm run dev`, lalu buka URL lokal yang dicetak di terminal.
 4. Login menggunakan password di `.env`.
 
@@ -67,7 +67,7 @@ Konfigurasi mengikuti [panduan Nuxt di Vercel](https://vercel.com/docs/framework
 
 1. Push source beserta `package-lock.json` ke repository privat. `.gitignore` mengecualikan `.env`, CSV, DOCX, PDF, ZIP, dan hasil build.
 2. Import repository di Vercel, pilih preset **Nuxt.js**, Node.js 22.22+ / 24, build `npm run build`, install `npm ci`. Nitro memilih adapter Vercel otomatis.
-3. Tambahkan `NUXT_ADMIN_PASSWORD` dan `NUXT_SESSION_SECRET` pada Environment Variables, serta variabel Gotenberg bila menggunakan PDF. Jangan memakai prefix `NUXT_PUBLIC_` untuk secret.
+3. Tambahkan `NUXT_ADMIN_PASSWORDS` (password admin dipisahkan koma) dan `NUXT_SESSION_SECRET` pada Environment Variables, serta variabel Gotenberg bila menggunakan PDF. `NUXT_ADMIN_PASSWORD` tunggal tetap didukung. Jangan memakai prefix `NUXT_PUBLIC_` untuk secret.
 4. Deploy, uji login, DOCX, ZIP, serta PDF dengan template resmi. Jika menggunakan PDF, sediakan durasi function setidaknya 60 detik dalam pengaturan project Vercel.
 5. Atur Vercel Firewall rate limiting untuk `/api/auth/login` guna melindungi percobaan login lintas instance.
 

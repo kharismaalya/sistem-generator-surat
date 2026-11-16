@@ -1,4 +1,4 @@
-import { adminSession, constantEqual, credentialFingerprint, requireSameOrigin } from '../../utils/auth'
+import { adminSession, constantEqual, configuredAdminPasswords, credentialFingerprint, requireSameOrigin } from '../../utils/auth'
 
 // Batas per instance; tambahkan Vercel Firewall rate limiting untuk seluruh deployment.
 const attempts = new Map<string, { count: number; expires: number }>()
@@ -12,12 +12,15 @@ export default defineEventHandler(async event => {
   if (Number(getHeader(event, 'content-length')) > 4096) throw createError({ statusCode: 413, statusMessage: 'Permintaan terlalu besar.' })
   const body = await readBody(event)
   const session = await adminSession(event)
-  if (typeof body?.password !== 'string' || body.password.length > 1024 || !constantEqual(body.password, useRuntimeConfig(event).adminPassword)) {
+  const passwords = configuredAdminPasswords(useRuntimeConfig(event))
+  const validPassword = typeof body?.password === 'string' && body.password.length <= 1024
+    && passwords.reduce((matched, password) => constantEqual(body.password, password) || matched, false)
+  if (!validPassword) {
     attempt.count++; attempts.set(ip, attempt)
     throw createError({ statusCode: 401, statusMessage: 'Password tidak sesuai.' })
   }
   attempts.delete(ip)
   await session.clear()
-  await session.update({ admin: true, fingerprint: credentialFingerprint(useRuntimeConfig(event).adminPassword) })
+  await session.update({ admin: true, fingerprint: credentialFingerprint(body.password) })
   return { authenticated: true }
 })

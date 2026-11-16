@@ -4,9 +4,19 @@ import JSZip from 'jszip'
 import { parseCsv } from '../utils/csv-parser'
 import { normalizePhone, whatsappLink } from '../utils/whatsapp'
 import { createDocument, documentName, validateAlumni } from '../utils/document-generator'
+import { configuredAdminPasswords } from '../server/utils/auth'
 import type { Alumni } from '../types/alumni'
 const headers = 'Nama,NIM,Program Studi,Tahun Lulus,Tempat Kerja,Nomor WhatsApp\n'
 const alumni: Alumni = { nama: 'Alumni Uji & Rekan', nim: '001234', prodi: 'Keperawatan', tahunLulus: '2024', tempatKerja: 'Rumah Sakit Uji', whatsapp: '081234567890' }
+describe('admin password configuration', () => {
+  it('accepts multiple passwords and the legacy single-password setting', () => {
+    expect(configuredAdminPasswords({ adminPasswords: ' pertama , kedua\nketiga', adminPassword: 'lama' }))
+      .toEqual(['pertama', 'kedua', 'ketiga', 'lama'])
+  })
+  it('ignores empty password entries', () => {
+    expect(configuredAdminPasswords({ adminPasswords: ', \n', adminPassword: '' })).toEqual([])
+  })
+})
 function template(body = '{nama} / {nim} / {program_studi} / {tahun_lulus} / {tempat_kerja} / {nomor_surat} / {tanggal}') {
   const zip = new PizZip()
   zip.file('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')

@@ -6,9 +6,9 @@ import assert from 'node:assert/strict'
 import PizZip from 'pizzip'
 import JSZip from 'jszip'
 
-const password = randomBytes(24).toString('hex'), base = 'http://localhost:4311'
+const password = randomBytes(24).toString('hex'), secondPassword = randomBytes(24).toString('hex'), base = 'http://localhost:4311'
 const child = spawn(process.execPath, ['.output/server/index.mjs'], {
-  env: { ...process.env, PORT: '4311', HOST: 'localhost', NUXT_ADMIN_PASSWORD: password, NUXT_SESSION_SECRET: randomBytes(32).toString('hex'), NUXT_GOTENBERG_URL: '' },
+  env: { ...process.env, PORT: '4311', HOST: 'localhost', NUXT_ADMIN_PASSWORDS: `${password},${secondPassword}`, NUXT_SESSION_SECRET: randomBytes(32).toString('hex'), NUXT_GOTENBERG_URL: '' },
   stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
 })
 let logs = ''
@@ -30,7 +30,9 @@ try {
   assert.equal((await login({ password: 'wrong' })).status, 401)
   const result = await login({ password })
   assert.equal(result.status, 200)
-  const setCookie = result.headers.get('set-cookie')
+  const secondLogin = await login({ password: secondPassword })
+  assert.equal(secondLogin.status, 200)
+  const setCookie = secondLogin.headers.get('set-cookie')
   assert.match(setCookie, /HttpOnly/i); assert.match(setCookie, /Secure/i); assert.match(setCookie, /SameSite=Strict/i)
   const cookie = result.headers.getSetCookie().filter(c => c.startsWith('tracer-session=')).at(-1).split(';')[0]
   assert.equal((await fetch(base + '/api/auth/session', { headers: { cookie } })).status, 200)

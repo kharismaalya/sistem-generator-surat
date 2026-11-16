@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss'],
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
-    adminPassword: '', sessionSecret: '',
+    adminPassword: '', adminPasswords: '', sessionSecret: '',
     gotenbergUrl: '', gotenbergUsername: '', gotenbergPassword: '',
   },
   app: { head: {

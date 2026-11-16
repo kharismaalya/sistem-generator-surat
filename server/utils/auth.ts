@@ -4,9 +4,14 @@ import { createError, getRequestURL, getHeader, useSession, type H3Event } from 
 export function constantEqual(a: string, b: string) {
   return timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest())
 }
+export function configuredAdminPasswords(config: { adminPassword: string; adminPasswords: string }) {
+  return [...(config.adminPasswords || '').split(/[,\r\n]/), config.adminPassword || '']
+    .map(password => password.trim())
+    .filter(Boolean)
+}
 export async function adminSession(event: H3Event) {
   const config = useRuntimeConfig(event)
-  if (config.sessionSecret.length < 32 || !config.adminPassword) throw createError({ statusCode: 503, statusMessage: 'Isi NUXT_ADMIN_PASSWORD dan NUXT_SESSION_SECRET (minimal 32 karakter) di environment server.' })
+  if (config.sessionSecret.length < 32 || configuredAdminPasswords(config).length === 0) throw createError({ statusCode: 503, statusMessage: 'Isi NUXT_ADMIN_PASSWORDS (atau NUXT_ADMIN_PASSWORD) dan NUXT_SESSION_SECRET (minimal 32 karakter) di environment server.' })
   return useSession<{ admin: boolean; fingerprint: string }>(event, {
     name: 'tracer-session', password: config.sessionSecret, maxAge: 60 * 60 * 8,
     cookie: { httpOnly: true, sameSite: 'strict', secure: !import.meta.dev, path: '/' },
@@ -17,7 +22,8 @@ export function credentialFingerprint(password: string) {
 }
 export async function requireAdmin(event: H3Event) {
   const session = await adminSession(event)
-  if (!session.data.admin || session.data.fingerprint !== credentialFingerprint(useRuntimeConfig(event).adminPassword)) throw createError({ statusCode: 401, statusMessage: 'Sesi berakhir. Silakan login kembali.' })
+  const credentials = configuredAdminPasswords(useRuntimeConfig(event))
+  if (!session.data.admin || !credentials.some(password => session.data.fingerprint === credentialFingerprint(password))) throw createError({ statusCode: 401, statusMessage: 'Sesi berakhir. Silakan login kembali.' })
   return session
 }
 export function requireSameOrigin(event: H3Event) {
